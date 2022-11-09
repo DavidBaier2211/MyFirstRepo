@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>imPossible is nothing</title>
+    <link rel="stylesheet" href="style.css" />
+
+           <script
+      type="text/javascript"
+      src="https://assets.pingone.com/davinci/latest/davinci.js"
+    ></script>
+
+    <script>
+      let userProperties;
+      let skWidget;
+
+      function start(policyId) {
+        
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get("continueToken")) {
+          // flush parameter from window url
+          window.history.pushState(
+            {},
+            document.title,
+            window.location.pathname
+          );
+          loadwidget(policyId, urlParams.get("continueToken"), null);
+        } else {
+          
+          loadwidget(policyId, "", 0);
+        }
+      }
+
+      function loadwidget(policyId, continueToken, authLevel) {
+        document.getElementById("loggedInUserActions").style.display = "none";
+          document.getElementById("loggedOutUserActions").style.display = "none";
+        
+        const skApiBaseUrl = "https://orchestrate-api.pingone.eu/v1";
+        const companyId = "3a1bbe2a-c31d-4615-9cdd-5fcc6939239c";
+        const skApiKey =
+          "6bd1b678641214617f03ffe56d10ec7e95e8e65512adaadeb57f24f717cc5660437af4c231135005284095403397b468d2425923aebefb416d5efdd51964aeb3aaa076eb00151b36dae7ca5b2284dc8197be7ee4d00d63119ebe1d68de5fd6dd728b3deb65aff959e851149920640841c1ba9424392f35d09117172723d4cb05";
+     
+        const skGetTokenUrl =
+          skApiBaseUrl + "/company/" + companyId + "/sdktoken";
+
+        if (continueToken != "") {
+          var props = {
+            config: {
+              method: "continueFlow",
+              apiRoot: skApiBaseUrl,
+              accessToken: continueToken,
+              companyId: companyId,
+              policyId: policyId,
+            },
+            useModal: false,
+            successCallback,
+            errorCallback,
+            onCloseModal,
+          };
+          /*** Invoke PingOrchestrate Widget ****/
+          console.log(props);
+          davinci.renderScreen(document.getElementById("widget"), props);
+        } else {
+          var headers = new Headers();
+          headers.append("X-SK-API-KEY", skApiKey);
+
+          var requestOptions = {
+            method: "GET",
+            headers: headers,
+            redirect: "follow",
+          };
+
+          fetch(skGetTokenUrl, requestOptions)
+            .then((response) => response.json())
+            .then((responseData) => {
+              var props = {
+                config: {
+                  method: "runFlow",
+                  apiRoot: "https://auth.pingone.eu/",
+                  accessToken: responseData.access_token,
+                  companyId: companyId,
+                  policyId: policyId,
+                },
+                useModal: false,
+                successCallback,
+                errorCallback,
+                onCloseModal,
+              };
+            if (authLevel != null) {
+              var parameters = {
+                requestAuthnLevel: authLevel
+              }
+              props.parameters = parameters;
+            }
+              /*** Invoke PingOrchestrate Widget ****/
+              console.log(props);
+              davinci.renderScreen(
+                document.getElementById("widget"),
+                props
+              );
+            })
+            .catch((error) => console.log("error", error));
+        }
+        function successCallback(response) {
+          console.log("successCallback");
+
+          davinci.cleanup(document.getElementById("widget"));
+          userProperties = response.additionalProperties;
+          if (response.additionalProperties.loggedOut == true) 
+             updateUI(false);
+          else if (response.additionalProperties.loggedOut == false) {
+          document.getElementById("loggedInUserActions").style.display = "block";
+          document.getElementById("loggedOutUserActions").style.display = "none";
+          } else 
+            updateUI(true);
+        }
+
+        function errorCallback(error) {
+          console.log(error);
+        }
+
+        function onCloseModal() {
+          console.log("onCloseModal");
+        }
+      }
+
+      function decodeJWT(Jwt) {
+        let parts = Jwt.split(".");
+        let header;
+        let payload;
+
+        if (parts.length !== 3) {
+          throw new Error("Malformed JWT");
+        }
+
+        header = JSON.parse(this.base64urlDecodeStr(parts[0]));
+        payload = JSON.parse(this.base64urlDecodeStr(parts[1]));
+
+        return {
+          header: header,
+          payload: payload,
+          encoded: {
+            header: parts[0],
+            payload: parts[1],
+            signature: parts[2],
+          },
+        };
+      }
+
+      function base64urlDecodeStr(str) {
+        str = str.replace(/-/g, "+").replace(/_/g, "/");
+        return atob(str);
+      }
+
+      function updateUI(isUserAuthenticated) {
+        console.log("updateUI. Is user authenticated " + isUserAuthenticated);
+
+        var links = document.getElementById("links");
+        var loggedIn = document.getElementById("loggedIn");
+        var email = document.getElementById("emailAddress");
+        if (isUserAuthenticated) {
+          email.textContent =
+            userProperties.firstName + " (" + userProperties.email + ")";
+
+            document.getElementById("loggedInUserActions").style.display = "block";
+          document.getElementById("loggedOutUserActions").style.display = "none";
+          loggedIn.style.display = "block";
+          
+        } else {
+          email.textContent = "";
+          loggedIn.style.display = "none";
+          document.getElementById("loggedInUserActions").style.display = "none";
+          document.getElementById("loggedOutUserActions").style.display = "block";
+          window.location.href=window.location.href;
+        }
+      }
+    </script>
+  </head>
+  <body onload="start('2fa0bc44ba34a031c1ac3fcd870f8057')">
+    <div id="top-spacer" class="top-spacer"></div>
+    <div id="header" class="header">
+      <div id="logo">
+   
+      </div>
+      <div id="loggedIn">
+         <div id="pageLinks">
+        <a
+          id="logoutLink"
+          onclick="loadwidget('e2333df9c3599602c7b59465f652c818', '', null)"
+          >Log Out</a
+        >
+      </div>
+        <span id="emailAddress"></span>
+        
+      </div>
+     
+    </div>
+    <div id="main">
+      <div id="widget"></div>
+      <div id="loggedInUserActions">
+        <!-- Buttons to launch specific flows for logged in users go here -->
+        
+        
+        <button class="inputButton"  onclick="window.location.href='https://auth.pingone.com/7d053b3e-110f-4fc8-bb60-b47327bb3104/as/authorize?client_id=32686c5b-ba89-49ee-b30e-f36a9b11dc6f&scope=openid&response_type=id_token+token&nonce=b056e926-0952-5274-e48b-40bbda1e866f&state=1d4b6647-18e9-d3bf-b7cf-696417e59771&redirect_uri=https://www.rfu.ping-eng.com/'" >
+         Fan Site
+        </button>
+        
+        <button class="inputButton"  onclick="window.location.href='https://auth.pingone.com/7d053b3e-110f-4fc8-bb60-b47327bb3104/as/authorize?client_id=0485ff5d-6433-45ce-830b-38e145cfc030&scope=openid&response_type=id_token+token&nonce=6dbc034c-6c43-2b62-95e2-75285f14114d&state=6017ef55-f660-2192-63c4-dfeb4f0d19b5&redirect_uri=https://players.rfu.ping-eng.com/'" >
+         Player Portal (Game Management System)
+        </button>
+                
+        <button class="inputButton"  onclick="loadwidget('4372bfaba2abb3cd8ba32bacfad63922', '', null)" >
+         View Profile
+        </button>
+        
+        <button class="inputButton"  onclick="loadwidget('6e66b4a06ac2bb4f50efa3aa53d79061', '', null)" >
+         View Agreements
+        </button>
+      
+        <button class="inputButton"  onclick="loadwidget('e4b90cb5c9544806213d5d4345e077a6', '', null)" >
+         Link Accounts
+        </button>
+        
+<!--          <button class="inputButton"  onclick="loadwidget('c72a79c78e6edcde30b1733f660cb853', '', null)" >
+         View All Data or Delete Account
+        </button> -->
+       
+        
+      </div>
+      <div id="loggedOutUserActions">
+    
+      </div>
+    </div>
+
+    <div id="footer" class="footer">
+      <div id="bottom-spacer" class="bottom-spacer"></div>
+    </div>
+  </body>
+</html>
